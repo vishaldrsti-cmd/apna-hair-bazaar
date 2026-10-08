@@ -1,6 +1,7 @@
- <!doctype html>
+<!doctype html>
 <html lang="hi">
-<head> <meta name="google-site-verification" content="0CbuiYpsCxgmnpGsocFsug3u5au8ASHEf3zLByVWsJI" />
+<head>
+<meta name="google-site-verification" content="0CbuiYpsCxgmnpGsocFsug3u5au8ASHEf3zLByVWsJI">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>अपना हेयर बाज़ार</title>
 <meta name="theme-color" content="#111827">
@@ -11,12 +12,15 @@
 header{background:#111827;color:#fff;padding:18px 16px;position:sticky;top:0;z-index:5}.brand{font-size:24px;font-weight:800}.sub{font-size:12px;opacity:.75}
 main{max-width:760px;margin:auto;padding:16px}.card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 4px 18px #0000000b}
 h2,h3{margin:5px 0 12px}.muted{color:#667085;font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-button,input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #d7dce3;font:inherit}button{background:#111827;color:#fff;border:0;font-weight:700}.secondary{background:#eef0f3;color:#172033}.success{background:#16794b}
+button,input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #d7dce3;font:inherit}button{background:#111827;color:#fff;border:0;font-weight:700}.secondary{background:#eef0f3;color:#172033}.success{background:#16794b}.danger{background:#b42318}.small{padding:9px;font-size:13px}
 .nav{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0}.hidden{display:none!important}
-.service{border:1px solid #e3e6ea;padding:12px;border-radius:14px}.price{font-weight:800}.pill{display:inline-block;background:#eef2ff;padding:5px 9px;border-radius:99px;font-size:12px;margin:3px}
+.service{border:1px solid #e3e6ea;padding:12px;border-radius:14px}.price{font-weight:800}
 .booking{border-left:4px solid #111827;padding:10px;margin:8px 0;background:#fafafa;border-radius:10px}
+.service-admin{border:1px solid #e3e6ea;padding:10px;border-radius:12px;margin:8px 0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:11px 15px;border-radius:12px;display:none;z-index:20}
 #status{font-size:12px;padding:8px 10px;border-radius:10px;background:#fff3cd;color:#7a5b00}.ok{background:#dcfce7!important;color:#166534!important}
+.note{padding:10px;border-radius:12px;background:#f8fafc;font-size:13px}.amount{font-size:24px;font-weight:800}
 </style>
 </head>
 <body>
@@ -53,6 +57,18 @@ button,input,select{width:100%;padding:12px;border-radius:12px;border:1px solid 
 <select id="ownerSalon" onchange="renderOwner()"></select>
 </div>
 <div id="ownerStats" class="grid"></div>
+
+<div class="card">
+<h3>Services & Prices</h3>
+<p class="muted">मालिक यहाँ service और price बदल सकता है। Customer को वही updated price दिखेगा।</p>
+<div id="serviceManager"></div>
+<div class="row">
+<input id="newServiceName" placeholder="नई service का नाम">
+<input id="newServicePrice" type="number" min="0" placeholder="कीमत ₹">
+</div><br>
+<button onclick="addService()">➕ नई Service जोड़ें</button>
+</div>
+
 <div class="card"><h3>Live Bookings</h3><div id="ownerBookings"></div></div>
 <div class="card"><h3>मेरा QR</h3><div id="qrcode"></div><p id="qrLink" class="muted"></p></div>
 </section>
@@ -60,97 +76,102 @@ button,input,select{width:100%;padding:12px;border-radius:12px;border:1px solid 
 <div id="toast"></div>
 
 <script>
-const SUPABASE_URL = "https://xwkxnpxixrrjuooamrcw.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_T-jquuQOszaWlcmfBLdPOA_Mh10C9QN";
-let db=null, selectedSalon=null, selectedService=null, salons=[], bookings=[];
+const SUPABASE_URL="https://xwkxnpxixrrjuooamrcw.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_T-jquuQOszaWlcmfBLdPOA_Mh10C9QN";
+let db=null,selectedSalon=null,selectedService=null,salons=[],bookings=[];
 
-if(!SUPABASE_URL.startsWith("PASTE_") && !SUPABASE_ANON_KEY.startsWith("PASTE_")){
-  db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-  document.getElementById('status').textContent='● Realtime connected';
-  document.getElementById('status').classList.add('ok');
-  startRealtime();
-}else{
-  salons=[
-   {id:'demo-vishal',name:'Vishal Hair Cut',owner_name:'Demo Owner',phone:'',area:'Demo',services:[{name:'Hair Cut',price:150},{name:'Beard',price:100},{name:'Hair Cut + Beard',price:220},{name:'Facial',price:300}]},
-   {id:'demo-raja',name:'Raja Hair Salon',owner_name:'Demo Owner',phone:'',area:'Demo',services:[{name:'Hair Cut',price:180},{name:'Beard',price:120},{name:'Hair Color',price:450},{name:'Facial',price:350}]}
-  ];
-  renderSalons();
-}
+if(!SUPABASE_URL.startsWith("PASTE_")&&!SUPABASE_ANON_KEY.startsWith("PASTE_")){
+ db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ document.getElementById('status').textContent='● Realtime connected';
+ document.getElementById('status').classList.add('ok'); startRealtime();
+}else{renderSalons()}
 
-function show(x){['customer','owner','register'].forEach(id=>document.getElementById(id).classList.toggle('hidden',id!==x));if(x==='owner')initOwner();}
+function show(x){['customer','owner','register'].forEach(id=>document.getElementById(id).classList.toggle('hidden',id!==x));if(x==='owner')initOwner()}
 function toast(t){let x=document.getElementById('toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2200)}
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 
 async function startRealtime(){
- await loadSalons();
- db.channel('bookings-live').on('postgres_changes',{event:'*',schema:'public',table:'bookings'},()=>{loadBookings();renderOwner();}).subscribe();
+ await loadSalons();await loadBookings();
+ db.channel('bookings-live').on('postgres_changes',{event:'*',schema:'public',table:'bookings'},async()=>{await loadBookings();renderOwner()}).subscribe();
 }
 async function loadSalons(){
  const {data,error}=await db.from('salons').select('*').eq('active',true).order('name');
- if(error){toast(error.message);return}
- salons=data||[];renderSalons();
+ if(error){toast(error.message);return}salons=data||[];renderSalons()
 }
 async function loadBookings(){
  if(!db)return;
- const {data}=await db.from('bookings').select('*').order('created_at',{ascending:false});
- bookings=data||[];renderOwner();
+ const {data,error}=await db.from('bookings').select('*').order('created_at',{ascending:false});
+ if(error){console.log(error.message);return}bookings=data||[];renderOwner()
 }
 function renderSalons(){
- document.getElementById('salons').innerHTML=salons.map(s=>`<button class="secondary" onclick="openSalon('${s.id}')"><b>${s.name}</b><br><span class="muted">${s.area||''}</span></button>`).join('')||'<p class="muted">अभी कोई salon नहीं।</p>';
+ document.getElementById('salons').innerHTML=salons.map(s=>`<button class="secondary" onclick="openSalon('${s.id}')"><b>${esc(s.name)}</b><br><span class="muted">${esc(s.area||'')}</span></button>`).join('')||'<p class="muted">अभी कोई salon नहीं।</p>'
 }
 async function openSalon(id){
- selectedSalon=salons.find(s=>String(s.id)===String(id));selectedService=null;
+ selectedSalon=salons.find(s=>String(s.id)===String(id));selectedService=null;if(!selectedSalon)return;
  let services=selectedSalon.services||[];
- if(db){
-  const {data}=await db.from('services').select('*').eq('salon_id',id).eq('active',true).order('name');
-  services=data||[];
- }
+ if(db){const {data,error}=await db.from('services').select('*').eq('salon_id',id).eq('active',true).order('name');if(error){toast(error.message);return}services=data||[]}
  selectedSalon._services=services;
  const v=document.getElementById('salonView');v.classList.remove('hidden');
- v.innerHTML=`<h2>${selectedSalon.name}</h2><div class="muted">${selectedSalon.area||''}</div><h3>Services</h3><div class="grid">${services.map((x,i)=>`<div class="service"><b>${x.name}</b><br><span class="price">₹${x.price}</span><br><br><button onclick="selectService(${i})">चुनें</button></div>`).join('')}</div>`;
- v.scrollIntoView({behavior:'smooth'});
+ v.innerHTML=`<h2>${esc(selectedSalon.name)}</h2><div class="muted">${esc(selectedSalon.area||'')}</div><h3>Services</h3><div class="grid">${services.map((x,i)=>`<div class="service"><b>${esc(x.name)}</b><br><span class="price">₹${Number(x.price||0)}</span><br><br><button onclick="selectService(${i})">चुनें</button></div>`).join('')}</div>`;
+ v.scrollIntoView({behavior:'smooth'})
 }
 function selectService(i){selectedService=selectedSalon._services[i];toast(selectedService.name+' चुना गया');openBooking()}
 function openBooking(){
  const b=document.getElementById('bookingView');b.classList.remove('hidden');
- b.innerHTML=`<h2>Appointment</h2><p><b>${selectedSalon.name}</b> · ${selectedService.name} · ₹${selectedService.price}</p>
+ b.innerHTML=`<h2>Appointment</h2><p><b>${esc(selectedSalon.name)}</b> · ${esc(selectedService.name)}</p><div class="amount">₹${Number(selectedService.price||0)}</div><p class="muted">Final service price</p>
  <input id="custName" placeholder="आपका नाम"><br><br><input id="custPhone" placeholder="मोबाइल नंबर"><br><br>
  <input id="date" type="date"><br><br><input id="time" type="time" value="10:00"><br><br>
- <button class="success" onclick="confirmBooking()">बुकिंग कन्फर्म करें</button>
- <p class="muted">अभी payment gateway नहीं जोड़ा गया है; booking real database में जाएगी।</p>`;
- document.getElementById('date').value=new Date().toISOString().slice(0,10);
+ <h3>Payment</h3><select id="paymentMethod"><option value="pay_at_salon">Salon पर भुगतान</option><option value="online">Online payment</option></select><br><br>
+ <div class="note">अभी online gateway connect नहीं है। अभी चुना हुआ payment method booking में save होगा।</div><br>
+ <button class="success" onclick="confirmBooking()">बुकिंग कन्फर्म करें</button>`;
+ document.getElementById('date').value=new Date().toISOString().slice(0,10)
 }
 async function confirmBooking(){
- const customer_name=document.getElementById('custName').value.trim(),customer_phone=document.getElementById('custPhone').value.trim();
- if(!customer_name||!customer_phone){toast('नाम और मोबाइल भरें');return}
- if(!db){toast('Realtime चालू करने के बाद booking online होगी');return}
- const row={salon_id:selectedSalon.id,customer_name,customer_phone,service_name:selectedService.name,amount:selectedService.price,booking_date:document.getElementById('date').value,booking_time:document.getElementById('time').value,status:'confirmed'};
- const {error}=await db.from('bookings').insert(row);
- if(error){toast(error.message);return}
- document.getElementById('bookingView').innerHTML='<h2>✅ Booking Confirmed</h2><p>आपकी booking online save हो गई है।</p><p class="muted">Salon owner के dashboard में तुरंत दिखाई देगी।</p>';
- await loadBookings();toast('Booking online save हो गई');
+ const customer_name=document.getElementById('custName').value.trim(),customer_phone=document.getElementById('custPhone').value.trim(),payment_method=document.getElementById('paymentMethod').value;
+ if(!customer_name||!customer_phone){toast('नाम और मोबाइल भरें');return}if(!db){toast('Realtime चालू करें');return}
+ const row={salon_id:selectedSalon.id,customer_name,customer_phone,service_name:selectedService.name,amount:Number(selectedService.price||0),booking_date:document.getElementById('date').value,booking_time:document.getElementById('time').value,status:'confirmed',payment_method};
+ const {error}=await db.from('bookings').insert(row);if(error){toast(error.message);return}
+ document.getElementById('bookingView').innerHTML=`<h2>✅ Booking Confirmed</h2><p>आपकी booking online save हो गई है।</p><p><b>Amount: ₹${row.amount}</b></p><p>Payment: ${payment_method==='online'?'Online payment':'Salon पर भुगतान'}</p>`;
+ await loadBookings();toast('Booking online save हो गई')
 }
 async function registerSalon(){
  if(!db){toast('पहले Supabase setup करें');return}
  const name=document.getElementById('rName').value.trim(),owner_name=document.getElementById('rOwner').value.trim(),phone=document.getElementById('rPhone').value.trim(),area=document.getElementById('rArea').value.trim();
  if(!name||!phone){toast('Salon name और mobile जरूरी है');return}
  const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'-'+Math.random().toString(36).slice(2,6);
- const {data,error}=await db.from('salons').insert({name,slug,owner_name,phone,area,active:true}).select().single();
- if(error){toast(error.message);return}
- await db.from('services').insert([{salon_id:data.id,name:'Hair Cut',price:150,active:true},{salon_id:data.id,name:'Beard',price:100,active:true}]);
- await loadSalons();toast('Salon जुड़ गया');show('owner');
- document.getElementById('ownerSalon').value=data.id;renderOwner();
+ const {data,error}=await db.from('salons').insert({name,slug,owner_name,phone,area,active:true}).select().single();if(error){toast(error.message);return}
+ const {error:se}=await db.from('services').insert([{salon_id:data.id,name:'Hair Cut',price:150,active:true},{salon_id:data.id,name:'Beard',price:100,active:true}]);if(se){toast(se.message);return}
+ await loadSalons();toast('Salon जुड़ गया');show('owner');document.getElementById('ownerSalon').value=data.id;renderOwner()
 }
-async function initOwner(){if(db)await loadBookings();let s=document.getElementById('ownerSalon');s.innerHTML=salons.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');renderOwner();}
-function renderOwner(){
- if(!document.getElementById('owner')||document.getElementById('owner').classList.contains('hidden'))return;
+async function initOwner(){if(db){await loadSalons();await loadBookings()}let s=document.getElementById('ownerSalon');s.innerHTML=salons.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');renderOwner()}
+async function renderOwner(){
+ if(document.getElementById('owner').classList.contains('hidden'))return;
  const id=document.getElementById('ownerSalon')?.value;if(!id)return;
  const bs=bookings.filter(b=>String(b.salon_id)===String(id));
  document.getElementById('ownerStats').innerHTML=`<div class="card"><b>${bs.length}</b><br><span class="muted">Bookings</span></div><div class="card"><b>₹${bs.reduce((a,b)=>a+Number(b.amount||0),0)}</b><br><span class="muted">Revenue</span></div>`;
- document.getElementById('ownerBookings').innerHTML=bs.length?bs.map(b=>`<div class="booking"><b>${b.customer_name}</b><br>${b.service_name} · ₹${b.amount}<br><span class="muted">${b.booking_date} · ${b.booking_time} · ${b.customer_phone}</span></div>`).join(''):'<p class="muted">अभी कोई booking नहीं।</p>';
- const salon=salons.find(s=>String(s.id)===String(id));const slug=salon?.slug||id;const link=location.origin+location.pathname+'?salon='+slug;
- document.getElementById('qrLink').textContent=link;
- const q=document.getElementById('qrcode');q.innerHTML='';if(window.QRCode)new QRCode(q,{text:link,width:180,height:180});
+ document.getElementById('ownerBookings').innerHTML=bs.length?bs.map(b=>`<div class="booking"><b>${esc(b.customer_name)}</b><br>${esc(b.service_name)} · ₹${Number(b.amount||0)}<br><span class="muted">${esc(b.booking_date||'')} · ${esc(b.booking_time||'')} · ${esc(b.customer_phone||'')} · ${esc(b.payment_method||'')}</span></div>`).join(''):'<p class="muted">अभी कोई booking नहीं।</p>';
+ await renderServiceManager(id);
+ const salon=salons.find(s=>String(s.id)===String(id)),slug=salon?.slug||id,link=location.origin+location.pathname+'?salon='+encodeURIComponent(slug);
+ document.getElementById('qrLink').textContent=link;const q=document.getElementById('qrcode');q.innerHTML='';if(window.QRCode)new QRCode(q,{text:link,width:180,height:180})
 }
-(function(){const p=new URLSearchParams(location.search);const slug=p.get('salon');if(slug&&db){setTimeout(async()=>{const {data}=await db.from('salons').select('*').eq('slug',slug).single();if(data)openSalon(data.id)},700);}})();
+async function renderServiceManager(salonId){
+ const box=document.getElementById('serviceManager');const {data,error}=await db.from('services').select('*').eq('salon_id',salonId).order('name');
+ if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+ box.innerHTML=(data||[]).map(s=>`<div class="service-admin"><div class="row"><input id="sn-${s.id}" value="${esc(s.name)}"><input id="sp-${s.id}" type="number" min="0" value="${Number(s.price||0)}"></div><br><div class="row"><button class="success small" onclick="saveService('${s.id}')">💾 Save</button><button class="${s.active?'danger':'secondary'} small" onclick="toggleService('${s.id}',${!s.active})">${s.active?'बंद करें':'चालू करें'}</button></div></div>`).join('')||'<p class="muted">अभी कोई service नहीं।</p>'
+}
+async function saveService(id){
+ const name=document.getElementById('sn-'+id).value.trim(),price=Number(document.getElementById('sp-'+id).value);if(!name||price<0){toast('सही service और price डालें');return}
+ const {error}=await db.from('services').update({name,price}).eq('id',id);if(error){toast(error.message);return}toast('Service और price update हो गया');await renderServiceManager(document.getElementById('ownerSalon').value);await openSalon(document.getElementById('ownerSalon').value)
+}
+async function toggleService(id,active){
+ const {error}=await db.from('services').update({active}).eq('id',id);if(error){toast(error.message);return}toast(active?'Service चालू हो गई':'Service बंद हो गई');await renderServiceManager(document.getElementById('ownerSalon').value);await openSalon(document.getElementById('ownerSalon').value)
+}
+async function addService(){
+ const salonId=document.getElementById('ownerSalon').value,name=document.getElementById('newServiceName').value.trim(),price=Number(document.getElementById('newServicePrice').value);
+ if(!salonId||!name||price<0||!Number.isFinite(price)){toast('Service name और सही price डालें');return}
+ const {error}=await db.from('services').insert({salon_id:salonId,name,price,active:true});if(error){toast(error.message);return}
+ document.getElementById('newServiceName').value='';document.getElementById('newServicePrice').value='';toast('नई service जोड़ दी गई');await renderServiceManager(salonId);await openSalon(salonId)
+}
+(function(){const p=new URLSearchParams(location.search),slug=p.get('salon');if(slug&&db)setTimeout(async()=>{const {data}=await db.from('salons').select('*').eq('slug',slug).single();if(data)openSalon(data.id)},700)})();
 </script>
 </body></html>
