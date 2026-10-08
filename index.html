@@ -980,4 +980,2028 @@ const DAY_NAMES = [
   "Sunday",
   "Monday",
   "Tuesday",
-  "W
+  "wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday"
+];
+
+
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
+
+let salons = [];
+let currentSalon = null;
+let currentService = null;
+let currentDate = null;
+let currentSlot = null;
+let currentBookings = [];
+let currentTimetable = [];
+
+let ownerSalon = null;
+
+
+/* =========================================================
+   BASIC HELPERS
+========================================================= */
+
+function $(id){
+  return document.getElementById(id);
+}
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function escapeAttr(value){
+  return String(value ?? "")
+    .replace(/\\/g,"\\\\")
+    .replace(/'/g,"\\'");
+}
+
+function toast(message){
+  const box = $("toast");
+
+  if(!box){
+    alert(message);
+    return;
+  }
+
+  box.textContent = message;
+  box.style.display = "block";
+
+  clearTimeout(window.__toastTimer);
+
+  window.__toastTimer =
+    setTimeout(()=>{
+      box.style.display = "none";
+    },3000);
+}
+
+
+/* =========================================================
+   PAGE NAVIGATION
+========================================================= */
+
+function showPage(pageId){
+
+  const pages = [
+    "customerPage",
+    "salonPage",
+    "addSalonPage",
+    "ownerPage"
+  ];
+
+  pages.forEach(id=>{
+    const el = $(id);
+    if(el) el.classList.add("hidden");
+  });
+
+  const page = $(pageId);
+
+  if(page){
+    page.classList.remove("hidden");
+  }
+
+  if(pageId === "customerPage"){
+    loadSalons();
+  }
+
+  if(pageId === "salonPage"){
+    renderSalonPageList();
+  }
+
+  if(pageId === "ownerPage"){
+    renderOwnerSalonList();
+  }
+}
+
+
+/*
+=================
+   SALON FIELD HELPERS
+========================================================= */
+
+function getSalonName(salon){
+  return (
+    salon.name ||
+    salon.salon_name ||
+    salon.title ||
+    "Salon"
+  );
+}
+
+function getOwnerName(salon){
+  return (
+    salon.owner_name ||
+    salon.owner ||
+    salon.ownerName ||
+    ""
+  );
+}
+
+function getSalonPhone(salon){
+  return (
+    salon.phone ||
+    salon.owner_phone ||
+    salon.mobile ||
+    ""
+  );
+}
+
+function getSalonAddress(salon){
+  return (
+    salon.address ||
+    salon.location ||
+    ""
+  );
+}
+
+
+/* =========================================================
+   LOAD SALONS
+   IMPORTANT:
+   No created_at ordering is used.
+========================================================= */
+
+async function loadSalons(){
+
+  const list = $("salonList");
+
+  if(list){
+    list.innerHTML =
+      '<div class="muted">Salon लोड हो रहे हैं...</div>';
+  }
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("salons")
+        .select("*");
+
+    if(result.error){
+
+      console.error(
+        "SALON LOAD ERROR:",
+        result.error
+      );
+
+      salons = [];
+
+      if(list){
+
+        list.innerHTML = `
+          <div class="card">
+            <div class="error">
+              Salon लोड नहीं हो पा रहे हैं।
+            </div>
+
+            <p class="muted">
+              Supabase से salons table पढ़ने में समस्या आ रही है।
+            </p>
+
+            <button
+              class="blue"
+              onclick="loadSalons()">
+              🔄 फिर से कोशिश करें
+            </button>
+          </div>
+        `;
+      }
+
+      return;
+    }
+
+    salons = result.data || [];
+
+    renderCustomerSalons();
+    renderSalonPageList();
+    renderOwnerSalonList();
+
+    handleSalonFromUrl();
+
+  }catch(error){
+
+    console.error(error);
+
+    if(list){
+
+      list.innerHTML = `
+        <div class="card">
+          <div class="error">
+            Salon लोड करने में समस्या हुई।
+          </div>
+
+          <button
+            class="blue"
+            onclick="loadSalons()">
+            🔄 Retry
+          </button>
+        </div>
+      `;
+
+    }
+  }
+}
+
+
+/* =========================================================
+   CUSTOMER SALON LIST
+========================================================= */
+
+function renderCustomerSalons(){
+
+  const list = $("salonList");
+
+  if(!list) return;
+
+  const search =
+    ($("customerSearch")?.value || "")
+      .trim()
+      .toLowerCase();
+
+  let data = salons;
+
+  if(search){
+
+    data = salons.filter(salon=>{
+
+      const text = (
+        getSalonName(salon) + " " +
+        getOwnerName(salon) + " " +
+        getSalonAddress(salon)
+      ).toLowerCase();
+
+      return text.includes(search);
+    });
+
+  }
+
+  if(!data.length){
+
+    list.innerHTML = `
+      <div class="card">
+        <b>कोई Salon नहीं मिला।</b>
+        <p class="muted">
+          Salon का नाम खोजें या नया Salon जोड़ें।
+        </p>
+      </div>
+    `;
+
+    return;
+  }
+
+  list.innerHTML = data.map(salon=>{
+
+    const id = escapeAttr(salon.id);
+
+    return `
+      <div class="salon">
+
+        <div class="salon-title">
+          💈 ${escapeHtml(getSalonName(salon))}
+        </div>
+
+        ${
+          getOwnerName(salon)
+          ? `<p class="muted">
+              👨‍💼 मालिक:
+              ${escapeHtml(getOwnerName(salon))}
+             </p>`
+          : ""
+        }
+
+        ${
+          getSalonAddress(salon)
+          ? `<p class="muted">
+              📍 ${escapeHtml(getSalonAddress(salon))}
+             </p>`
+          : ""
+        }
+
+        ${
+          getSalonPhone(salon)
+          ? `<p class="muted">
+              📞 ${escapeHtml(getSalonPhone(salon))}
+             </p>`
+          : ""
+        }
+
+        <div class="top-actions">
+
+          <button
+            class="blue"
+            onclick="openSalon('${id}')">
+            Salon खोलें
+          </button>
+
+          <button
+            class="green"
+            onclick="openSalon('${id}')">
+            🛎️ Book Now
+          </button>
+
+        </div>
+
+      </div>
+    `;
+
+  }).join("");
+}
+
+
+/*
+=========================================================
+   CUSTOMER SEARCH
+========================================================= */
+
+let customerSearchMode = "salon";
+
+
+function setSearchMode(mode){
+
+  customerSearchMode = mode;
+
+  const input = $("customerSearch");
+  const hint = $("customerSearchHint");
+
+  if(!input) return;
+
+  if(mode === "salon"){
+
+    input.placeholder = "Salon खोजें...";
+
+    if(hint){
+      hint.textContent = "Salon चुनें";
+    }
+
+    renderCustomerSalons();
+
+  }else if(mode === "owner"){
+
+    input.placeholder = "Salon मालिक खोजें...";
+
+    if(hint){
+      hint.textContent =
+        "मालिक के नाम से Salon खोजें";
+    }
+
+    renderOwnerSearchResults();
+
+  }else{
+
+    input.placeholder =
+      "ग्राहक का नाम / मोबाइल...";
+
+    if(hint){
+      hint.textContent =
+        "Booking में ग्राहक खोजें";
+    }
+
+    renderCustomerBookingSearch();
+
+  }
+}
+
+
+function customerSearchChanged(){
+
+  if(customerSearchMode === "salon"){
+    renderCustomerSalons();
+  }
+
+  if(customerSearchMode === "owner"){
+    renderOwnerSearchResults();
+  }
+
+  if(customerSearchMode === "customer"){
+    renderCustomerBookingSearch();
+  }
+}
+
+
+function renderOwnerSearchResults(){
+
+  const list = $("salonList");
+
+  if(!list) return;
+
+  const search =
+    ($("customerSearch")?.value || "")
+      .trim()
+      .toLowerCase();
+
+  if(!search){
+
+    list.innerHTML =
+      '<div class="muted">मालिक का नाम लिखें।</div>';
+
+    return;
+  }
+
+  const data =
+    salons.filter(salon =>
+      getOwnerName(salon)
+        .toLowerCase()
+        .includes(search)
+    );
+
+  if(!data.length){
+
+    list.innerHTML =
+      '<div class="muted">कोई मालिक नहीं मिला।</div>';
+
+    return;
+  }
+
+  list.innerHTML = data.map(salon=>`
+
+    <div class="salon">
+
+      <div class="salon-title">
+        💈 ${escapeHtml(getSalonName(salon))}
+      </div>
+
+      <p class="muted">
+        👨‍💼 मालिक:
+        ${escapeHtml(getOwnerName(salon))}
+      </p>
+
+      <button
+        class="blue"
+        onclick="openSalon('${escapeAttr(salon.id)}')">
+        Salon खोलें
+      </button>
+
+    </div>
+
+  `).join("");
+}
+
+
+/* =========================================================
+   CUSTOMER BOOKING SEARCH
+========================================================= */
+
+async function renderCustomerBookingSearch(){
+
+  const list = $("salonList");
+
+  if(!list) return;
+
+  const search =
+    ($("customerSearch")?.value || "")
+      .trim();
+
+  if(!search){
+
+    list.innerHTML =
+      '<div class="muted">ग्राहक का नाम या मोबाइल लिखें।</div>';
+
+    return;
+  }
+
+  list.innerHTML =
+    '<div class="muted">ग्राहक खोज रहे हैं...</div>';
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("bookings")
+        .select("*")
+        .or(
+          `customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%`
+        )
+        .limit(30);
+
+    if(result.error){
+
+      list.innerHTML =
+        '<div class="error">ग्राहक खोजने में समस्या हुई।</div>';
+
+      return;
+    }
+
+    const rows = result.data || [];
+
+    if(!rows.length){
+
+      list.innerHTML =
+        '<div class="muted">कोई booking नहीं मिली।</div>';
+
+      return;
+    }
+
+    list.innerHTML = rows.map(row=>`
+
+      <div class="salon">
+
+        <b>👤 ${escapeHtml(row.customer_name || "Customer")}</b>
+
+        <p class="muted">
+          📞 ${escapeHtml(row.customer_phone || "")}
+        </p>
+
+        <p class="muted">
+          📅 ${escapeHtml(row.booking_date || "")}
+        </p>
+
+        <p class="muted">
+          🕐 ${escapeHtml(row.booking_time || "")}
+        </p>
+
+        ${
+          row.booking_number
+          ? `<p><b>Booking #${escapeHtml(row.booking_number)}</b></p>`
+          : ""
+        }
+
+      </div>
+
+    `).join("");
+
+  }catch(error){
+
+    console.error(error);
+
+    list.innerHTML =
+      '<div class="error">Search error.</div>';
+  }
+}
+
+
+/* =========================================================
+   OPEN SALON
+========================================================= */
+
+async function openSalon(salonId){
+
+  const salon =
+    salons.find(
+      s => String(s.id) === String(salonId)
+    );
+
+  if(!salon){
+
+    toast("Salon नहीं मिला।");
+    return;
+  }
+
+  currentSalon = salon;
+
+  $("bookingBox")?.classList.remove("hidden");
+
+  if($("bookingSalonName")){
+    $("bookingSalonName").textContent =
+      getSalonName(salon);
+  }
+
+  if($("bookingSalonInfo")){
+
+    $("bookingSalonInfo").textContent =
+      [
+        getOwnerName(salon)
+          ? "मालिक: " + getOwnerName(salon)
+          : "",
+        getSalonAddress(salon)
+          ? "📍 " + getSalonAddress(salon)
+          : "",
+        getSalonPhone(salon)
+          ? "📞 " + getSalonPhone(salon)
+          : ""
+      ]
+      .filter(Boolean)
+      .join(" | ");
+
+  }
+
+  await loadServices();
+
+  setMinimumDate();
+
+  $("bookingBox")?.scrollIntoView({
+    behavior:"smooth"
+  });
+}
+
+
+/* =========================================================
+   SERVICES
+========================================================= */
+
+async function loadServices(){
+
+  const select =
+    $("serviceSelect");
+
+  if(!select || !currentSalon) return;
+
+  select.innerHTML =
+    '<option value="">Service लोड हो रही है...</option>';
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("services")
+        .select("*")
+        .eq("salon_id",currentSalon.id);
+
+    if(result.error){
+
+      console.error(result.error);
+
+      select.innerHTML =
+        '<option value="">Service नहीं मिली</option>';
+
+      return;
+    }
+
+    services = result.data || [];
+
+    if(!services.length){
+
+      select.innerHTML =
+        '<option value="">कोई Service उपलब्ध नहीं है</option>';
+
+      return;
+    }
+
+    select.innerHTML =
+      '<option value="">Service चुनें</option>';
+
+    services.forEach(service=>{
+
+      const option =
+        document.createElement("option");
+
+      option.value = service.id;
+
+      const name =
+        service.name ||
+        service.service_name ||
+        "Service";
+
+      const price =
+        service.price != null
+        ? " - ₹" + service.price
+        : "";
+
+      option.textContent =
+        name + price;
+
+      select.appendChild(option);
+
+    });
+
+  }catch(error){
+
+    console.error(error);
+
+    select.innerHTML =
+      '<option value="">Service लोड नहीं हुई</option>';
+  }
+}
+
+
+function serviceChanged(){
+
+  const id =
+    $("serviceSelect")?.value;
+
+  currentService =
+    services.find(
+      service => String(service.id) === String(id)
+    ) || null;
+
+  currentSlot = null;
+
+  if($("selectedSlotBox")){
+    $("selectedSlotBox").classList.add("hidden");
+  }
+
+  loadTimeSlots();
+}
+
+
+/*
+  =========================================================
+   DATE
+========================================================= */
+
+function setMinimumDate(){
+
+  const input = $("bookingDate");
+
+  if(!input) return;
+
+  const today =
+    new Date();
+
+  const value =
+    today.toISOString().split("T")[0];
+
+  input.min = value;
+
+  if(!input.value){
+    input.value = value;
+  }
+
+  currentDate = input.value;
+}
+
+
+/* =========================================================
+   TIMETABLE
+   If database timetable fails:
+   DEFAULT 09:00 - 20:00 / 30 minutes
+========================================================= */
+
+async function getDayTimetable(date){
+
+  const day =
+    new Date(date + "T00:00:00")
+      .getDay();
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("salon_timetable")
+        .select("*")
+        .eq("salon_id",currentSalon.id)
+        .eq("day_of_week",day)
+        .limit(1);
+
+    if(
+      result.error ||
+      !result.data ||
+      !result.data.length
+    ){
+
+      return {
+        is_open:true,
+        opening_time:DEFAULT_OPENING,
+        closing_time:DEFAULT_CLOSING,
+        slot_minutes:DEFAULT_SLOT_MINUTES,
+        fallback:true
+      };
+    }
+
+    const row =
+      result.data[0];
+
+    if(row.is_open === false){
+
+      return {
+        is_open:false,
+        opening_time:row.opening_time ||
+          DEFAULT_OPENING,
+        closing_time:row.closing_time ||
+          DEFAULT_CLOSING,
+        slot_minutes:Number(
+          row.slot_minutes
+        ) || DEFAULT_SLOT_MINUTES,
+        fallback:false
+      };
+
+    }
+
+    return {
+      is_open:true,
+      opening_time:
+        row.opening_time ||
+        DEFAULT_OPENING,
+      closing_time:
+        row.closing_time ||
+        DEFAULT_CLOSING,
+      slot_minutes:
+        Number(row.slot_minutes) ||
+        DEFAULT_SLOT_MINUTES,
+      fallback:false
+    };
+
+  }catch(error){
+
+    console.warn(
+      "Timetable fallback:",
+      error
+    );
+
+    return {
+      is_open:true,
+      opening_time:DEFAULT_OPENING,
+      closing_time:DEFAULT_CLOSING,
+      slot_minutes:DEFAULT_SLOT_MINUTES,
+      fallback:true
+    };
+  }
+}
+
+
+/* =========================================================
+   TIME HELPERS
+========================================================= */
+
+function timeToMinutes(time){
+
+  if(!time) return 0;
+
+  const parts =
+    String(time).split(":");
+
+  return (
+    Number(parts[0] || 0) * 60 +
+    Number(parts[1] || 0)
+  );
+}
+
+
+function minutesToTime(minutes){
+
+  const h =
+    Math.floor(minutes / 60);
+
+  const m =
+    minutes % 60;
+
+  return (
+    String(h).padStart(2,"0") +
+    ":" +
+    String(m).padStart(2,"0")
+  );
+}
+
+
+function formatTime(time){
+
+  if(!time) return "";
+
+  const parts =
+    time.split(":");
+
+  let hour =
+    Number(parts[0]);
+
+  const minute =
+    parts[1] || "00";
+
+  const suffix =
+    hour >= 12 ? "PM" : "AM";
+
+  hour =
+    hour % 12 || 12;
+
+  return `${hour}:${minute} ${suffix}`;
+}
+
+
+/* =========================================================
+   LOAD TIME SLOTS
+========================================================= */
+
+async function loadTimeSlots(){
+
+  const slotList =
+    $("slotList");
+
+  const info =
+    $("slotInfo");
+
+  if(!slotList || !info) return;
+
+  slotList.innerHTML = "";
+
+  currentSlot = null;
+
+  if($("selectedSlotBox")){
+    $("selectedSlotBox")
+      .classList.add("hidden");
+  }
+
+  if(!currentSalon ||
+     !currentService ||
+     !$("bookingDate")?.value){
+
+    info.textContent =
+      "पहले Service और Date चुनें।";
+
+    return;
+  }
+
+  currentDate =
+    $("bookingDate").value;
+
+  info.textContent =
+    "Time slots लोड हो रहे हैं...";
+
+  const timetable =
+    await getDayTimetable(currentDate);
+
+  if(!timetable.is_open){
+
+    info.innerHTML =
+      '<span class="warning">इस दिन Salon बंद है।</span>';
+
+    return;
+  }
+
+  if(timetable.fallback){
+
+    info.innerHTML =
+      '<span class="muted">Default timing: 09:00 AM - 08:00 PM</span>';
+
+  }else{
+
+    info.textContent =
+      `Timing: ${formatTime(timetable.opening_time)} - ${formatTime(timetable.closing_time)}`;
+
+  }
+
+  let existingBookings = [];
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("bookings")
+        .select("*")
+        .eq("salon_id",currentSalon.id)
+        .eq("booking_date",currentDate);
+
+    if(!result.error){
+      existingBookings =
+        result.data || [];
+    }
+
+  }catch(error){
+
+    console.warn(
+      "Booking count error:",
+      error
+    );
+
+  }
+
+  currentBookings =
+    existingBookings;
+
+  const start =
+    timeToMinutes(
+      timetable.opening_time
+    );
+
+  const end =
+    timeToMinutes(
+      timetable.closing_time
+    );
+
+  const step =
+    Number(timetable.slot_minutes) ||
+    DEFAULT_SLOT_MINUTES;
+
+  let found = false;
+
+  for(
+    let minute = start;
+    minute < end;
+    minute += step
+  ){
+
+    const time =
+      minutesToTime(minute);
+
+    const count =
+      existingBookings.filter(
+        booking =>
+          String(booking.booking_time || "")
+            .slice(0,5) === time
+      ).length;
+
+    const button =
+      document.createElement("button");
+
+    button.className = "slot";
+
+    button.innerHTML =
+      `${formatTime(time)}<br><small>${count} booking</small>`;
+
+    button.dataset.time = time;
+
+    button.onclick = () =>
+      selectTimeSlot(time,count);
+
+    slotList.appendChild(button);
+
+    found = true;
+  }
+
+  if(!found){
+
+    info.innerHTML =
+      '<span class="warning">आज कोई slot उपलब्ध नहीं है।</span>';
+  }
+}
+
+
+/* =========================================================
+   SELECT TIME SLOT
+========================================================= */
+
+function selectTimeSlot(time,count){
+
+  currentSlot = time;
+
+  document
+    .querySelectorAll(".slot")
+    .forEach(button=>{
+      button.classList.remove("selected");
+
+      if(button.dataset.time === time){
+        button.classList.add("selected");
+      }
+    });
+
+  const before =
+    currentBookings.filter(
+      booking =>
+        String(booking.booking_time || "")
+          .slice(0,5) < time
+    ).length;
+
+  $("selectedSlotBox")
+    ?.classList.remove("hidden");
+
+  if($("selectedSlotText")){
+
+    $("selectedSlotText").innerHTML =
+      `<b>${formatTime(time)}</b>`;
+  }
+
+  if($("slotBookingCount")){
+    $("slotBookingCount").textContent =
+      count;
+  }
+
+  if($("beforeCount")){
+    $("beforeCount").textContent =
+      before;
+  }
+}
+
+
+/* =========================================================
+   CONFIRM BOOKING
+========================================================= */
+
+async function confirmBooking(){
+
+  if(!currentSalon){
+
+    toast("पहले Salon चुनें।");
+    return;
+  }
+
+  if(!currentService){
+
+    toast("Service चुनें।");
+    return;
+  }
+
+  if(!currentDate){
+
+    toast("Date चुनें।");
+    return;
+  }
+
+  if(!currentSlot){
+
+    toast("Time slot चुनें।");
+    return;
+  }
+
+  const name =
+    ($("customerName")?.value || "").trim();
+
+  const phone =
+    ($("customerPhone")?.value || "").trim();
+
+  if(!name){
+
+    toast("अपना नाम लिखें।");
+    return;
+  }
+
+  if(!phone){
+
+    toast("मोबाइल नंबर लिखें।");
+    return;
+  }
+
+  const before =
+    currentBookings.filter(
+      booking =>
+        String(booking.booking_time || "")
+          .slice(0,5) < currentSlot
+    ).length;
+
+  const bookingNumber =
+    before + 1;
+
+  const baseData = {
+
+    salon_id:
+      currentSalon.id,
+
+    service_id:
+      currentService.id,
+
+    booking_date:
+      currentDate,
+
+    booking_time:
+      currentSlot,
+
+    customer_name:
+      name,
+
+    customer_phone:
+      phone
+
+  };
+
+
+  let inserted = null;
+
+
+  /* First attempt with booking_number/status */
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("bookings")
+        .insert({
+          ...baseData,
+          booking_number:bookingNumber,
+          status:"pending"
+        })
+        .select()
+        .single();
+
+    if(!result.error){
+
+      inserted =
+        result.data;
+
+    }
+
+  }catch(error){
+
+    console.warn(
+      "Booking first attempt:",
+      error
+    );
+
+  }
+
+
+  /* Fallback if extra columns don't exist */
+
+  if(!inserted){
+
+    try{
+
+      const result =
+        await supabaseClient
+          .from("bookings")
+          .insert(baseData)
+          .select()
+          .single();
+
+      if(result.error){
+
+        console.error(
+          "Booking error:",
+          result.error
+        );
+
+        toast(
+          "Booking नहीं हो सकी। कृपया फिर कोशिश करें।"
+        );
+
+        return;
+      }
+
+      inserted =
+        result.data;
+
+    }catch(error){
+
+      console.error(error);
+
+      toast("Booking में समस्या हुई।");
+      return;
+    }
+  }
+
+
+  /* SUCCESS */
+
+  const resultBox =
+    $("bookingResult");
+
+  if(resultBox){
+
+    resultBox.classList.remove("hidden");
+
+    resultBox.innerHTML = `
+
+      <div class="success">
+        ✅ Booking Confirm हो गई
+      </div>
+
+      <div class="booking-number">
+        #${escapeHtml(
+          String(
+            inserted.booking_number ||
+            bookingNumber
+          )
+        )}
+      </div>
+
+      <p>
+        <b>Salon:</b>
+        ${escapeHtml(getSalonName(currentSalon))}
+      </p>
+
+      <p>
+        <b>Service:</b>
+        ${escapeHtml(
+          currentService.name ||
+          currentService.service_name ||
+          "Service"
+        )}
+      </p>
+
+      <p>
+        <b>Date:</b>
+        ${escapeHtml(currentDate)}
+      </p>
+
+      <p>
+        <b>Time:</b>
+        ${escapeHtml(formatTime(currentSlot))}
+      </p>
+
+      <div class="stat">
+        आपसे पहले
+        <b>${before}</b>
+        ग्राहक हैं।
+      </div>
+
+    `;
+
+    resultBox.scrollIntoView({
+      behavior:"smooth"
+    });
+
+  }
+
+  toast("Booking सफल हो गई।");
+
+  await loadTimeSlots();
+}
+
+
+/*
+  /*
+=========================================================
+OWNER SECTION
+========================================================= */
+
+async function loadOwnerSalons(){
+
+  const list = $("ownerSalonList");
+
+  if(!list) return;
+
+  list.innerHTML =
+    '<div class="muted">Salon लोड हो रहे हैं...</div>';
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("salons")
+        .select("*");
+
+    if(result.error){
+
+      console.error(result.error);
+
+      list.innerHTML =
+        '<div class="error">Salon लोड नहीं हो पा रहे हैं।</div>';
+
+      return;
+    }
+
+    const data = result.data || [];
+
+    list.innerHTML = "";
+
+    if(!data.length){
+
+      list.innerHTML =
+        '<div class="muted">अभी कोई Salon नहीं है।</div>';
+
+      return;
+    }
+
+    data.forEach(salon => {
+
+      const card = document.createElement("div");
+
+      card.className = "card";
+
+      card.innerHTML = `
+        <h3>${salon.name || "Salon"}</h3>
+        <p class="muted">
+          ${salon.owner_name || salon.owner || ""}
+        </p>
+
+        <button
+          class="blue"
+          onclick="openOwnerDashboard('${salon.id}')">
+          👨‍💼 Dashboard खोलें
+        </button>
+      `;
+
+      list.appendChild(card);
+
+    });
+
+  }catch(error){
+
+    console.error(error);
+
+    list.innerHTML =
+      '<div class="error">Salon लोड करने में समस्या हुई।</div>';
+  }
+}
+  function openOwnerDashboard(salonId){
+
+  selectedSalonId = salonId;
+
+  const dashboard = $("ownerDashboard");
+
+  if(dashboard){
+    dashboard.style.display = "block";
+  }
+
+  loadOwnerBookings(salonId);
+  loadOwnerTimetable(salonId);
+  loadOwnerQR(salonId);
+}
+
+
+async function loadOwnerBookings(salonId){
+
+  const box = $("ownerBookings");
+
+  if(!box) return;
+
+  box.innerHTML =
+    '<div class="muted">Bookings लोड हो रही हैं...</div>';
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("bookings")
+        .select("*")
+        .eq("salon_id", salonId);
+
+    if(result.error){
+
+      console.error(result.error);
+
+      box.innerHTML =
+        '<div class="error">Bookings लोड नहीं हो पा रही हैं।</div>';
+
+      return;
+    }
+
+    const bookings = result.data || [];
+
+    if(!bookings.length){
+
+      box.innerHTML =
+        '<div class="muted">अभी कोई booking नहीं है।</div>';
+
+      return;
+    }
+
+    box.innerHTML = bookings.map((b, i) => `
+      <div class="card">
+        <b>Booking #${b.booking_number || i + 1}</b>
+        <div>👤 ${b.customer_name || "Customer"}</div>
+        <div>📅 ${b.booking_date || ""}</div>
+        <div>⏰ ${b.booking_time || ""}</div>
+      </
+      async function loadOwnerTimetable(salonId){
+
+  const box = $("ownerTimetable");
+
+  if(!box) return;
+
+  box.innerHTML =
+    '<div class="muted">Timetable लोड हो रहा है...</div>';
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("salon_timetable")
+        .select("*")
+        .eq("salon_id", salonId)
+        .order("day_of_week");
+
+    if(result.error){
+
+      console.warn("Timetable:", result.error);
+
+      box.innerHTML = `
+        <div class="muted">
+          Default timetable इस्तेमाल हो रहा है।
+        </div>
+      `;
+
+      return;
+    }
+
+    const rows = result.data || [];
+
+    if(!rows.length){
+
+      box.innerHTML = `
+        <div class="muted">
+          Default timetable: 09:00 AM - 08:00 PM
+        </div>
+      `;
+
+      return;
+    }
+
+    box.innerHTML = rows.map(row => `
+      <div class="card">
+        <b>${DAY_NAMES[row.day_of_week] || "Day"}</b>
+        <div>
+          ${row.is_open === false
+            ? "🔴 बंद"
+            : `🟢 ${row.opening_time || "09:00"} -
+               ${row.closing_time || "20:00"}`
+          }
+        </div>
+      </div>
+    `).join("");
+
+  }catch(error){
+
+    console.error(error);
+
+    box.innerHTML = `
+      <div class="muted">
+        Default timetable इस्तेमाल हो रहा है।
+      </div>
+    `;
+  }
+}
+function loadOwnerQR(salonId){
+
+  const box = $("qrCode");
+
+  if(!box) return;
+
+  box.innerHTML = "";
+
+  const link =
+    window.location.origin +
+    window.location.pathname +
+    "?salon=" +
+    encodeURIComponent(salonId);
+
+  try{
+
+    new QRCode(box, {
+      text: link,
+      width: 180,
+      height: 180
+    });
+
+  }catch(error){
+
+    console.error(error);
+
+    box.innerHTML =
+      '<div class="error">QR Code बनाने में समस्या हुई।</div>';
+  }
+
+  const shareBox = $("shareLink");
+
+  if(shareBox){
+    shareBox.value = link;
+  }
+}
+async function addSalon(){
+
+  const name =
+    $("newSalonName")?.value.trim();
+
+  const owner =
+    $("newSalonOwner")?.value.trim();
+
+  const phone =
+    $("newSalonPhone")?.value.trim();
+
+  const address =
+    $("newSalonAddress")?.value.trim();
+
+  if(!name){
+
+    toast("Salon का नाम डालें।");
+
+    return;
+  }
+
+  try{
+
+    let result =
+      await supabaseClient
+        .from("salons")
+        .insert([{
+          name: name,
+          owner_name: owner,
+          phone: phone,
+          address: address
+        }])
+        .select()
+        .single();
+
+    if(result.error){
+
+      console.warn("Full salon insert failed:", result.error);
+
+      result =
+        await supabaseClient
+          .from("sal
+          async function searchSalons(){
+
+  const input = $("salonSearch");
+
+  const keyword =
+    input ? input.value.trim().toLowerCase() : "";
+
+  const list = $("salonPageList");
+
+  if(!list) return;
+
+  if(!keyword){
+
+    list.innerHTML =
+      '<div class="muted">Salon का नाम लिखें।</div>';
+
+    return;
+  }
+
+  try{
+
+    const result =
+      await supabaseClient
+        .from("salons")
+        .select("*");
+
+    if(result.error){
+
+      console.error(result.error);
+
+      list.innerHTML =
+        '<div class="error">Salon खोजने में समस्या हुई।</div>';
+
+      return;
+    }
+
+    const data = result.data || [];
+
+    const found = data.filter(salon => {
+
+      const name =
+        String(salon.name || "").toLowerCase();
+
+      const owner =
+        String(
+          salon.owner_name ||
+          salon.owner ||
+          ""
+        ).toLowerCase();
+
+      return (
+        name.includes(keyword) ||
+        owner.includes(keyword)
+      );
+
+    });
+
+    if(!found.length){
+
+      list.innerHTML =
+        '<div class="muted">कोई Salon नहीं मिला।</div>';
+
+      return;
+    }
+
+    list.innerHTML = found.map(salon => `
+      <div class="card">
+
+        <h3>${salon.name || "Salon"}</h3>
+
+        <p>
+          👨‍💼 ${salon.owner_name || salon.owner || ""}
+        </p>
+
+        <p>
+          📍 ${salon.address || ""}
+        </p>
+
+        <button
+          class="blue"
+          onclick="openSalon('${salon.id}')">
+          💈 Salon खोलें
+        </button>
+
+      </div>
+    `).join("");
+
+  }catch(error){
+
+    console.error(error);
+
+    list.innerHTML =
+      '<div class="error">Search में समस्या हुई।</div>';
+  }
+}
+
+
+function shareSalon(){
+
+  const link =
+    $("shareLink")?.value;
+
+  if(!link){
+
+    toast("पहले Salon चुनें।");
+
+    return;
+  }
+
+  if(navigator.share){
+
+    navigator.share({
+      title: "अपना हेयर बाज़ार",
+      text: "Salon booking link",
+      url: link
+    }).catch(() => {});
+
+  }else{
+
+    navigator.clipboard
+      .writeText(link)
+      .then(() => {
+        toast("Share link कॉपी हो गया।");
+      })
+      .catch(() => {
+        toast("Link कॉपी नहीं हो पाया।");
+      });
+
+  }
+}
+async function openSalon(salonId){
+
+  selectedSalonId = salonId;
+
+  const salon =
+    salons.find(s => String(s.id) === String(salonId));
+
+  if(!salon){
+
+    try{
+
+      const result =
+        await supabaseClient
+          .from("salons")
+          .select("*")
+          .eq("id", salonId)
+          .single();
+
+      if(result.error){
+
+        toast("Salon नहीं मिला।");
+
+        return;
+      }
+
+      currentSalon = result.data;
+
+    }catch(error){
+
+      console.error(error);
+
+      toast("Salon खोलने में समस्या हुई।");
+
+      return;
+    }
+
+  }else{
+
+    currentSalon = salon;
+  }
+
+  showPage("bookingPage");
+
+  const title = $("bookingSalonName");
+
+  if(title){
+
+    title.textContent =
+      currentSalon.name || "Salon";
+  }
+
+  await loadServices(salonId);
+
+  await loadTimeSlots();
+
+}
+
+
+async function loadServices(salonId){
+
+  const select =
+    $("serviceSelect");
+
+  if(!select) return;
+async function loadTimeSlots(){
+
+  const box = $("slotList");
+
+  if(!box) return;
+
+  box.innerHTML =
+    '<div class="muted">Time slots लोड हो रहे हैं...</div>';
+
+  const salonId = selectedSalonId;
+
+  const date = getSelectedDate();
+
+  if(!salonId || !date){
+
+    box.innerHTML =
+      '<div class="muted">पहले date चुनें।</div>';
+
+    return;
+  }
+
+  let opening = DEFAULT_OPENING;
+  let closing = DEFAULT_CLOSING;
+  let minutes = DEFAULT_SLOT_MINUTES;
+
+  try{
+
+    const day =
+      new Date(date + "T00:00:00").getDay();
+
+    const result =
+      await supabaseClient
+        .from("salon_timetable")
+        .select("*")
+        .eq("salon_id", salonId)
+        .eq("day_of_week", day)
+        .maybeSingle();
+
+    if(!result.error && result.data){
+
+      if(result.data.is_open === false){
+
+        box.innerHTML =
+          '<div class="muted">इस दिन Salon बंद है।</div>';
+
+        return;
+      }
+
+      opening =
+        result.data.opening_time || DEFAULT_OPENING;
+
+      closing =
+        result.data.closing_time || DEFAULT_CLOSING;
+
+      minutes =
+        Number(
+          result.data.slot_minutes ||
+          DEFAULT_SLOT_MINUTES
+        );
+    }
+
+  }catch(error){
+
+    console.warn(
+      "Timetable unavailable, using default:",
+      error
+    );
+
+  }
+
+  const bookingsResult =
+    await supabaseClient
+      .from("bookings")
+      .select("*")
+      .eq("salon_id", salonId)
+      .eq("booking_date", date);
+
+  const bookings =
+    bookingsResult.error
+      ? []
+      : (bookingsResult.data || []);
+
+  const slots =
+    createTimeSlots(opening, closing, minutes);
+
+  if(!slots.length){
+
+    box.innerHTML =
+      '<div class="muted">आज कोई slot उपलब्ध नहीं है।</div>';
+
+    return;
+  }
+
+  box.innerHTML = "";
+
+  slots.forEach(time => {
+
+    const count =
+      bookings.filter(b =>
+        String(b.booking_time || "")
+          .slice(0,5) === time
+      ).length;
+
+    const button =
+      document.createElement("button");
+
+    button.className = "slot";
+
+    button.innerHTML = `
+      <b>${time}</b>
+      <span>${count} booking
+    async function confirmBooking(){
+
+  const name =
+    $("customerName")?.value.trim();
+
+  const phone =
+    $("customerPhone")?.value.trim();
+
+  const serviceId =
+    getSelectedService();
+
+  const date =
+    getSelectedDate();
+
+  if(!selectedSalonId){
+
+    toast("पहले Salon चुनें।");
+    return;
+  }
+
+  if(!serviceId){
+
+    toast("Service चुनें।");
+    return;
+  }
+
+  if(!date){
+
+    toast("Date चुनें।");
+    return;
+  }
+
+  if(!selectedTime){
+
+    toast("Time slot चुनें।");
+    return;
+  }
+
+  if(!name){
+
+    toast("अपना नाम डालें।");
+    return;
+  }
+
+  if(!phone){
+
+    toast("अपना मोबाइल नंबर डालें।");
+    return;
+  }
+
+  try{
+
+    const sameSlot =
+      await supabaseClient
+        .from("bookings")
+        .select("*")
+        .eq("salon_id", selectedSalonId)
+        .eq("booking_date", date)
+        .eq("booking_time", selectedTime);
+
+    const previous =
+      sameSlot.error
+        ? []
+        : (sameSlot.data || []);
+
+    const bookingNumber =
+      previous.length + 1;
+
+    const result =
+      await supabaseClient
+        .from("bookings")
+        .insert([{
+          salon_id: selectedSalonId,
+          service_id: serviceId,
+          booking_date: date,
+          booking_time: selectedTime,
+          customer_name: name,
+          customer_phone: phone,
+          booking_number: bookingNumber
+        }])
+        .select()
+        .single();
+
+    if(result.error){
+
+      console.error(result.error);
+
+      toast("Booking नहीं हो पाई।");
+
+      return;
+    }
+
+    const number =
+      result.data?.booking_number ||
+      bookingNumber;
+
+    const numberBox =
+      $("bookingNumber");
+
+    if(numberBox){
+
+      numberBox.innerHTML = `
+        🎉 Booking सफल!
+        <br>
+       async function startApp(){
+
+  try{
+
+    await loadSalons();
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+  try{
+
+    await loadOwnerSalons();
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    startApp();
+
+  }
+);
