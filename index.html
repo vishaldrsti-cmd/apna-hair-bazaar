@@ -1,1198 +1,983 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="hi">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>अपना हेयर बाज़ार</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Existing Google Search Console verification -->
+  <meta name="google-site-verification" content="0CbuiYpsCxgmnpGsocFsug3u5au8ASHEf3zLByVWsJI">
 
-<style>
-body{font-family:system-ui,sans-serif;margin:0;background:#f5f7fb;color:#172033}
-.wrap{max-width:900px;margin:auto;padding:16px}
-.hero,.card{background:#fff;border-radius:16px;padding:18px;margin:12px 0;box-shadow:0 3px 14px #0001}
-h1{margin:0 0 5px}
-button{border:0;border-radius:10px;padding:11px 14px;margin:5px;background:#172033;color:white;font-weight:700}
-button.secondary{background:#e9edf5;color:#172033}
-input,select{width:100%;box-sizing:border-box;padding:11px;border:1px solid #ccd3df;border-radius:9px;margin:5px 0 10px}
-.tabs{display:flex;gap:6px;flex-wrap:wrap}
-.tabs button{flex:1}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.muted{color:#667085}
-.service,.salon{border:1px solid #e0e5ed;border-radius:12px;padding:12px;margin:8px 0}
-.ok{color:#087f5b}
-.danger{color:#b42318}
-.day{border:1px solid #e0e5ed;border-radius:12px;padding:12px;margin:8px 0}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.hidden{display:none}
-#qrcode{padding:10px;text-align:center}
-.small{font-size:13px}
-</style>
+  <meta name="description" content="Apna Hair Bazaar - Salon booking and queue management">
+  <meta name="theme-color" content="#111827">
+
+  <title>अपना हेयर बाज़ार</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .container {
+      width: min(1100px, 94%);
+      margin: auto;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,.15);
+    }
+
+    .nav {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .logo {
+      font-size: 21px;
+      font-weight: 800;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 15px;
+      font-weight: 700;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-success {
+      background: #16a34a;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .btn-dark {
+      background: #374151;
+      color: white;
+    }
+
+    .btn-light {
+      background: white;
+      color: #111827;
+      border: 1px solid #d1d5db;
+    }
+
+    .btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .hero {
+      padding: 35px 0 20px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 6vw, 46px);
+    }
+
+    .hero p {
+      color: #6b7280;
+      margin: 0;
+    }
+
+    .section {
+      padding: 15px 0 35px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 3px 15px rgba(0,0,0,.07);
+      margin-bottom: 18px;
+    }
+
+    .card h2,
+    .card h3 {
+      margin-top: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 16px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 12px;
+      background: white;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #2563eb;
+    }
+
+    .salon-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px,1fr));
+      gap: 16px;
+    }
+
+    .salon-card {
+      background: white;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 3px 15px rgba(0,0,0,.07);
+    }
+
+    .salon-card h3 {
+      margin: 0 0 8px;
+    }
+
+    .muted {
+      color: #6b7280;
+    }
+
+    .small {
+      font-size: 13px;
+    }
+
+    .service-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .service-option {
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      background: white;
+    }
+
+    .service-option.selected {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+
+    .service-info strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .price {
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .slots {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(125px,1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .slot {
+      border: 1px solid #d1d5db;
+      background: white;
+      border-radius: 11px;
+      padding: 12px 7px;
+      text-align: center;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .slot:hover {
+      border-color: #2563eb;
+    }
+
+    .slot.selected {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+
+    .slot-info {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      margin-top: 4px;
+      opacity: .8;
+    }
+
+    .booking-box {
+      border: 2px solid #16a34a;
+      background: #f0fdf4;
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .booking-number {
+      font-size: 46px;
+      font-weight: 900;
+      color: #15803d;
+      margin: 8px 0;
+    }
+
+    .queue-number {
+      font-size: 28px;
+      font-weight: 900;
+      color: #2563eb;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .notice {
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin: 10px 0;
+    }
+
+    .notice-info {
+      background: #eff6ff;
+      color: #1e40af;
+    }
+
+    .notice-warning {
+      background: #fffbeb;
+      color: #92400e;
+    }
+
+    .notice-success {
+      background: #f0fdf4;
+      color: #166534;
+    }
+
+    .notice-error {
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .owner-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .owner-tab {
+      border: 1px solid #d1d5db;
+      background: white;
+      padding: 10px 14px;
+      border-radius: 9px;
+      font-weight: 700;
+    }
+
+    .owner-tab.active {
+      background: #111827;
+      color: white;
+    }
+
+    .booking-table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 650px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 11px 8px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #f9fafb;
+    }
+
+    .status {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .status-pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status-confirmed {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-completed {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .status-cancelled {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .qr-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      border: 1px dashed #d1d5db;
+      border-radius: 12px;
+      background: #fafafa;
+    }
+
+    .qr {
+      background: white;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .day-row {
+      display: grid;
+      grid-template-columns: 150px 90px 1fr 1fr 100px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 9px;
+    }
+
+    .day-row input[type="checkbox"] {
+      width: auto;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      margin-top: 4px;
+    }
+
+    footer {
+      padding: 30px 0;
+      text-align: center;
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      z-index: 9999;
+    }
+
+    .modal-box {
+      width: min(520px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
+      background: white;
+      border-radius: 18px;
+      padding: 20px;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .close-btn {
+      border: 0;
+      background: #f3f4f6;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 20px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 25px;
+      color: #6b7280;
+    }
+
+    @media (max-width: 750px) {
+      .grid,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .day-row {
+        grid-template-columns: 1fr 1fr;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 10px;
+      }
+
+      .day-row .day-name {
+        grid-column: 1 / -1;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        padding: 10px 0;
+        align-items: flex-start;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="wrap">
+<header>
+  <div class="container nav">
+    <div class="logo">✂️ अपना हेयर बाज़ार</div>
 
-<div class="hero">
-<h1>✂️ अपना हेयर बाज़ार</h1>
-<div>हर सैलून की अपनी डिजिटल दुकान</div>
-<div id="status" class="muted">Connecting...</div>
-</div>
+    <div class="nav-actions">
+      <button class="btn btn-light" onclick="showHome()">Customer</button>
+      <button class="btn btn-primary" onclick="openOwnerLogin()">Owner</button>
+    </div>
+  </div>
+</header>
 
-<div class="tabs">
-<button onclick="show('customer')">👤 ग्राहक</button>
-<button onclick="show('owner')">💈 सैलून मालिक</button>
-<button onclick="show('register')">➕ सैलून जोड़ें</button>
-</div>
+<main>
 
-<section id="customer">
+  <!-- CUSTOMER HOME -->
+  <section id="customerHome" class="section">
+    <div class="container">
 
-<div class="card">
-<h2>🔎 सैलून खोजें</h2>
-<div id="salons" class="grid"></div>
-</div>
+      <div class="hero">
+        <h1>अपना हेयर बाज़ार</h1>
+        <p>अपना Salon चुनें और अपना booking slot लें</p>
+      </div>
 
-<div id="publicSalon"></div>
+      <div id="customerNotice"></div>
 
-</section>
+      <div class="card">
+        <h2>Salon चुनें</h2>
+
+        <div class="field">
+          <input
+            id="salonSearch"
+            type="search"
+            placeholder="Salon खोजें..."
+            oninput="renderSalonList()"
+          >
+        </div>
+
+        <div id="salonList" class="salon-list">
+          <div class="loading">Salon लोड हो रहे हैं...</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
 
 
-<section id="owner" class="hidden">
+  <!-- CUSTOMER BOOKING -->
+  <section id="bookingSection" class="section hidden">
+    <div class="container">
 
-<div class="card">
-<h2>💈 सैलून मालिक</h2>
+      <div class="card">
+        <button class="btn btn-light" onclick="backToSalons()">← Salon बदलें</button>
 
-<select id="ownerSalon" onchange="loadOwner()">
-<option value="">सैलून चुनें</option>
-</select>
+        <div style="margin-top:15px">
+          <h2 id="bookingSalonName">Salon</h2>
+          <div id="bookingSalonDetails" class="muted"></div>
+        </div>
+      </div>
 
-</div>
+      <div class="grid">
 
-<div id="ownerPanel"></div>
+        <div class="card">
+          <h3>1. Service चुनें</h3>
 
-</section>
+          <div id="serviceList" class="service-list">
+            <div class="loading">Services लोड हो रही हैं...</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>2. Date चुनें</h3>
+
+          <div class="field">
+            <label for="bookingDate">Booking Date</label>
+            <input
+              type="date"
+              id="bookingDate"
+              onchange="dateChanged()"
+            >
+          </div>
+
+          <div id="timetableMessage" class="notice notice-info">
+            Date और service चुनने के बाद available slots दिखेंगे।
+          </div>
+
+          <h3 style="margin-top:20px">3. Time Slot चुनें</h3>
+
+          <div id="slotList" class="slots">
+            <div class="muted">पहले service और date चुनें।</div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div id="selectedSlotCard" class="card hidden">
+
+        <h3>आपका चुना हुआ Slot</h3>
+
+        <div class="notice notice-info">
+          <strong id="selectedSlotText"></strong>
+          <br>
+          इस समय पहले से मौजूद bookings नीचे दिखाई जाएंगी।
+        </div>
+
+        <div class="booking-box">
+          <div>इस slot में आपका अनुमानित Booking Number</div>
+          <div id="previewBookingNumber" class="booking-number">#1</div>
+
+          <div>
+            आपसे पहले
+            <span id="beforeCustomerCount" class="queue-number">0</span>
+            ग्राहक हैं।
+          </div>
+        </div>
+
+        <div style="margin-top:18px">
+          <h3>4. Customer Details</h3>
+
+          <div class="grid">
+
+            <div class="field">
+              <label for="customerName">नाम *</label>
+              <input id="customerName" type="text" placeholder="अपना नाम">
+            </div>
+
+            <div class="field">
+              <label for="customerPhone">मोबाइल नंबर *</label>
+              <input
+                id="customerPhone"
+                type="tel"
+                inputmode="numeric"
+                maxlength="15"
+                placeholder="मोबाइल नंबर"
+              >
+            </div>
+
+          </div>
+
+          <button
+            id="confirmBookingBtn"
+            class="btn btn-success"
+            style="width:100%;padding:14px"
+            onclick="confirmBooking()"
+          >
+            Booking Confirm करें
+          </button>
+        </div>
+
+      </div>
+
+      <div id="confirmedBookingCard" class="card hidden">
+        <div class="booking-box">
+
+          <h2>✅ Booking Confirmed</h2>
+
+          <div class="muted">आपका Booking Number</div>
+
+          <div id="confirmedBookingNumber" class="booking-number">
+            #1
+          </div>
+
+          <p id="confirmedBookingDetails"></p>
+
+          <div class="notice notice-success">
+            आपसे पहले
+            <strong id="confirmedBeforeCount">0</strong>
+            ग्राहक हैं।
+          </div>
+
+          <button class="btn btn-primary" onclick="startNewBooking()">
+            नई Booking
+          </button>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
 
 
-<section id="register" class="hidden">
+  <!-- OWNER LOGIN -->
+  <div id="ownerLoginModal" class="modal hidden">
 
-<div class="card">
+    <div class="modal-box">
 
-<h2>➕ नया सैलून जोड़ें</h2>
+      <div class="modal-head">
+        <h2>Owner Login</h2>
+        <button class="close-btn" onclick="closeOwnerLogin()">×</button>
+      </div>
 
-<input id="rName" placeholder="Salon Name">
-<input id="rOwner" placeholder="Owner Name">
-<input id="rPhone" placeholder="Mobile Number">
-<input id="rArea" placeholder="Village / City / Address">
+      <div id="ownerLoginMessage"></div>
 
-<button onclick="registerSalon()">सैलून जोड़ें</button>
+      <div class="field">
+        <label>Email</label>
+        <input id="ownerEmail" type="email" placeholder="Owner email">
+      </div>
 
-</div>
+      <div class="field">
+        <label>Password</label>
+        <input id="ownerPassword" type="password" placeholder="Password">
+      </div>
 
-</section>
+      <button
+        class="btn btn-primary"
+        style="width:100%"
+        onclick="ownerLogin()"
+      >
+        Login
+      </button>
 
-</div>
+    </div>
+
+  </div>
+
+
+  <!-- OWNER DASHBOARD -->
+  <section id="ownerDashboard" class="section hidden">
+    <div class="container">
+
+      <div class="card">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div>
+            <h2 style="margin-bottom:4px">Owner Dashboard</h2>
+            <div id="ownerEmailDisplay" class="muted"></div>
+          </div>
+
+          <button class="btn btn-danger" onclick="ownerLogout()">
+            Logout
+          </button>
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <h3>My Salons</h3>
+
+        <div class="field">
+          <label>Salon</label>
+          <select id="ownerSalonSelect" onchange="ownerSalonChanged()">
+            <option value="">Salon चुनें</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" onclick="openAddSalon()">
+          + नया Salon जोड़ें
+        </button>
+
+      </div>
+
+
+      <div id="ownerTools" class="hidden">
+
+        <div class="owner-tabs">
+          <button
+            id="tabBookings"
+            class="owner-tab active"
+            onclick="showOwnerTab('bookings')"
+          >
+            Live Bookings
+          </button>
+
+          <button
+            id="tabTimetable"
+            class="owner-tab"
+            onclick="showOwnerTab('timetable')"
+          >
+            Timetable
+          </button>
+
+          <button
+            id="tabQr"
+            class="owner-tab"
+            onclick="showOwnerTab('qr')"
+          >
+            QR / Share Link
+          </button>
+        </div>
+
+
+        <!-- OWNER BOOKINGS -->
+        <div id="ownerBookingsTab" class="card">
+
+          <h3>Live Bookings</h3>
+
+          <div class="grid">
+
+            <div class="field">
+              <label>Date</label>
+              <input
+                type="date"
+                id="ownerBookingDate"
+                onchange="loadOwnerBookings()"
+              >
+            </div>
+
+            <div class="field">
+              <label>Status</label>
+              <select id="ownerStatusFilter" onchange="renderOwnerBookings()">
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div class="stats">
+
+            <div class="stat">
+              Total
+              <strong id="statTotal">0</strong>
+            </div>
+
+            <div class="stat">
+              Waiting
+              <strong id="statWaiting">0</strong>
+            </div>
+
+            <div class="stat">
+              Completed
+              <strong id="statCompleted">0</strong>
+            </div>
+
+          </div>
+
+          <div id="ownerBookingsTable" class="booking-table-wrap">
+            <div class="loading">Bookings लोड हो रही हैं...</div>
+          </div>
+
+        </div>
+
+
+        <!-- OWNER TIMETABLE -->
+        <div id="ownerTimetableTab" class="card hidden">
+
+          <h3>Salon Timetable</h3>
+
+          <div class="notice notice-info">
+            अगर timetable save/read न हो पाए तो customer side पर
+            automatic default <strong>09:00–20:00</strong> और
+            <strong>30 मिनट</strong> के slots इस्तेमाल होंगे।
+          </div>
+
+          <div id="timetableEditor"></div>
+
+          <button
+            class="btn btn-success"
+            style="margin-top:15px"
+            onclick="saveTimetable()"
+          >
+            Timetable Save करें
+          </button>
+
+        </div>
+
+
+        <!-- QR -->
+        <div id="ownerQrTab" class="card hidden">
+
+          <h3>Salon QR & Share Link</h3>
+
+          <div class="grid">
+
+            <div>
+              <p>
+                इस QR को scan करने पर customer सीधे इसी salon की
+                booking screen पर जाएगा।
+              </p>
+
+              <div class="field">
+                <label>Salon Share Link</label>
+
+                <input
+                  id="salonShareLink"
+                  type="text"
+                  readonly
+                >
+              </div>
+
+              <button
+                class="btn btn-primary"
+                onclick="copySalonLink()"
+              >
+                Link Copy करें
+              </button>
+
+              <button
+                class="btn btn-light"
+                onclick="shareSalonLink()"
+              >
+                Share
+              </button>
+            </div>
+
+            <div class="qr-box">
+              <div id="salonQr" class="qr"></div>
+
+              <button
+                class="btn btn-dark"
+                onclick="downloadQr()"
+              >
+                QR Save करें
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  © अपना हेयर बाज़ार
+</footer>
 
 
 <script>
+/* =========================================================
+   SUPABASE
+========================================================= */
 
 const SUPABASE_URL =
-'https://xwkxnpxixrrjuooamrcw.supabase.co';
-
-const SUPABASE_ANON_KEY =
-'sb_publishable_T-jquuQOszaWlcmfBLdPOA_Mh10C9QN';
-
-const db =
-supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-
-let currentSalon=null;
-let currentLink='';
-
-
-function esc(s){
-return String(s??'').replace(/[&<>"']/g,m=>({
-'&':'&amp;',
-'<':'&lt;',
-'>':'&gt;',
-'"':'&quot;',
-"'":'&#39;'
-}[m]));
-}
-
-
-/* =========================
-   TAB
-========================= */
-
-function show(id){
-
-['customer','owner','register']
-.forEach(x=>{
-document.getElementById(x)
-.classList.toggle('hidden',x!==id);
-});
-
-if(id==='customer') loadSalons();
-
-if(id==='owner') loadOwnerList();
-
-}
-
-
-/* =========================
-   INIT
-========================= */
-
-async function init(){
-
-document.getElementById('status').textContent=
-'● Supabase connected';
-
-await loadSalons();
-await loadOwnerList();
-
-const slug=
-new URLSearchParams(location.search).get('salon');
-
-if(slug){
-openPublic(slug);
-}
-
-}
-
-
-/* =========================
-   SALON LIST
-========================= */
-
-async function loadSalons(){
-
-const {data,error}=
-await db
-.from('salons')
-.select('*')
-.eq('active',true)
-.order('created_at',{ascending:false});
-
-const box=document.getElementById('salons');
-
-if(error){
-box.innerHTML=
-'<p class="danger">Salon load error: '+esc(error.message)+'</p>';
-return;
-}
-
-box.innerHTML=
-(data||[]).map(s=>`
-
-<div class="salon">
-
-<h3>${esc(s.name)}</h3>
-
-<p>${esc(s.area||'')}</p>
-
-<p>Owner: ${esc(s.owner_name||'')}</p>
-
-<button onclick="openPublic('${esc(s.slug||s.id)}')">
-सैलून खोलें
-</button>
-
-</div>
-
-`).join('')||
-
-'<p>अभी कोई salon नहीं है।</p>';
-
-}
-
-
-/* =========================
-   PUBLIC SALON
-========================= */
-
-async function openPublic(slug){
-
-let q=
-await db
-.from('salons')
-.select('*')
-.eq('slug',slug)
-.maybeSingle();
-
-if(!q.data){
-
-q=
-await db
-.from('salons')
-.select('*')
-.eq('id',slug)
-.maybeSingle();
-
-}
-
-const s=q.data;
-
-if(!s){
-
-alert('Salon नहीं मिला');
-return;
-
-}
-
-currentSalon=s;
-
-const {data:services}=
-
-await db
-.from('services')
-.select('*')
-.eq('salon_id',s.id)
-.eq('active',true);
-
-document.getElementById('publicSalon').innerHTML=`
-
-<div class="card">
-
-<h2>✂️ ${esc(s.name)}</h2>
-
-<p>${esc(s.area||'')}</p>
-
-<h3>Services</h3>
-
-${
-(services||[]).map(v=>`
-
-<div class="service">
-
-<b>${esc(v.name)}</b>
-— ₹${esc(v.price)}
-
-<br>
-
-<button onclick="book('${s.id}','${esc(v.name)}',${Number(v.price)||0})">
-Book
-</button>
-
-</div>
-
-`).join('')
-
-||
-
-'<p>No services yet.</p>'
-
-}
-
-</div>
-
-`;
-
-window.scrollTo(
-0,
-document.getElementById('publicSalon').offsetTop
-);
-
-}
-
-
-/* =========================
-   BOOKING FORM
-========================= */
-
-async function book(salonId,service,amount){
-
-document.getElementById('publicSalon').innerHTML+=`
-
-<div class="card" id="bookingBox">
-
-<h3>📅 Booking: ${esc(service)}</h3>
-
-<input id="bName" placeholder="आपका नाम">
-
-<input id="bPhone" placeholder="मोबाइल नंबर">
-
-<label>📅 तारीख</label>
-
-<input id="bDate" type="date"
-onchange="loadCustomerSlots('${salonId}')">
-
-<label>⏰ समय</label>
-
-<select id="bTime">
-
-<option value="">पहले तारीख चुनें</option>
-
-</select>
-
-<button onclick="saveBooking('${salonId}','${esc(service)}',${amount})">
-
-Booking Confirm करें
-
-</button>
-
-</div>
-
-`;
-
-const dateInput=document.getElementById('bDate');
-
-const today=
-new Date().toISOString().split('T')[0];
-
-dateInput.min=today;
-dateInput.value=today;
-
-await loadCustomerSlots(salonId);
-
-document.getElementById('bookingBox').scrollIntoView();
-
-}
-
-
-/* =========================
-   CUSTOMER SLOTS
-========================= */
-
-async function loadCustomerSlots(salonId){
-
-const date=
-document.getElementById('bDate')?.value;
-
-const timeBox=
-document.getElementById('bTime');
-
-if(!date||!timeBox)return;
-
-const day=
-new Date(date+'T00:00:00').getDay();
-
-const {data:timetable,error}=
-
-await db
-.from('salon_timetable')
-.select('*')
-.eq('salon_id',salonId)
-.eq('day_of_week',day)
-.maybeSingle();
-
-if(error){
-
-timeBox.innerHTML=
-'<option>Timetable error</option>';
-
-return;
-
-}
-
-if(!timetable||timetable.is_open===false){
-
-timeBox.innerHTML=
-'<option value="">इस दिन सैलून बंद है</option>';
-
-return;
-
-}
-
-
-const {data:bookings}=
-
-await db
-.from('bookings')
-.select('booking_time')
-.eq('salon_id',salonId)
-.eq('booking_date',date);
-
-
-const booked=
-new Set(
-(bookings||[]).map(x=>
-String(x.booking_time).slice(0,5)
-)
-);
-
-
-const slots=[];
-
-let start=
-timeToMinutes(timetable.opening_time);
-
-const end=
-timeToMinutes(timetable.closing_time);
-
-const step=
-Number(timetable.slot_minutes)||30;
-
-
-while(start<end){
-
-const h=
-String(Math.floor(start/60)).padStart(2,'0');
-
-const m=
-String(start%60).padStart(2,'0');
-
-const value=h+':'+m;
-
-if(!booked.has(value)){
-slots.push(value);
-}
-
-start+=step;
-
-}
-
-
-timeBox.innerHTML=
-slots.length
-?
-
-'<option value="">समय चुनें</option>'+
-slots.map(x=>`<option value="${x}">${x}</option>`).join('')
-
-:
-
-'<option value="">आज सभी slots booked हैं</option>';
-
-}
-
-
-function timeToMinutes(t){
-
-if(!t)return 0;
-
-const p=String(t).slice(0,5).split(':');
-
-return Number(p[0])*60+Number(p[1]);
-
-}
-
-
-/* =========================
-   SAVE BOOKING
-========================= */
-
-async function saveBooking(
-salonId,
-service,
-amount
-){
-
-const name=
-document.getElementById('bName').value.trim();
-
-const phone=
-document.getElementById('bPhone').value.trim();
-
-const date=
-document.getElementById('bDate').value;
-
-const time=
-document.getElementById('bTime').value;
-
-
-if(!name){
-
-alert('अपना नाम डालें');
-return;
-
-}
-
-if(!phone){
-
-alert('मोबाइल नंबर डालें');
-return;
-
-}
-
-if(!date){
-
-alert('तारीख चुनें');
-return;
-
-}
-
-if(!time){
-
-alert('समय चुनें');
-return;
-
-}
-
-
-const {error}=
-
-await db
-.from('bookings')
-.insert({
-
-salon_id:salonId,
-customer_name:name,
-customer_phone:phone,
-service_name:service,
-amount:amount,
-booking_date:date,
-booking_time:time,
-status:'pending',
-payment_method:'cash'
-
-});
-
-
-if(error){
-
-alert(error.message);
-return;
-
-}
-
-alert('✅ Booking हो गई');
-
-document.getElementById('bookingBox')?.remove();
-
-}
-
-
-/* =========================
-   OWNER LIST
-========================= */
-
-async function loadOwnerList(){
-
-const {data,error}=
-
-await db
-.from('salons')
-.select('*')
-.order('name');
-
-if(error)return;
-
-document.getElementById('ownerSalon').innerHTML=
-
-'<option value="">सैलून चुनें</option>'+
-
-(data||[]).map(s=>
-`<option value="${esc(s.id)}">${esc(s.name)}</option>`
-).join('');
-
-}
-
-
-/* =========================
-   OWNER DASHBOARD
-========================= */
-
-async function loadOwner(){
-
-const id=
-document.getElementById('ownerSalon').value;
-
-if(!id){
-
-document.getElementById('ownerPanel').innerHTML='';
-return;
-
-}
-
-
-const {data:s}=
-
-await db
-.from('salons')
-.select('*')
-.eq('id',id)
-.single();
-
-if(!s)return;
-
-currentSalon=s;
-
-currentLink=
-location.origin+
-location.pathname+
-'?salon='+
-encodeURIComponent(s.slug||s.id);
-
-
-document.getElementById('ownerPanel').innerHTML=`
-
-<div class="card">
-
-<h3>📊 Live Bookings</h3>
-
-<div id="bookings">
-Loading...
-</div>
-
-</div>
-
-
-<div class="card">
-
-<h3>🕒 Timetable & Slots</h3>
-
-<p class="muted">
-हर दिन का खुलने-बंद होने का समय और booking slot यहाँ सेट करें।
-</p>
-
-<div id="days"></div>
-
-<button onclick="saveTimetable()">
-💾 Timetable Save करें
-</button>
-
-</div>
-
-
-<div class="card">
-
-<h3>📱 मेरा QR और Share Link</h3>
-
-<div id="qrcode"></div>
-
-<input id="qrLink" readonly value="${esc(currentLink)}">
-
-<button onclick="copyLink()">
-📋 Link Copy
-</button>
-
-<button onclick="shareLink()">
-📤 Share
-</button>
-
-<button onclick="whatsapp()">
-💬 WhatsApp
-</button>
-
-<button onclick="openLink()">
-🌐 Link खोलें
-</button>
-
-</div>
-
-`;
-
-
-renderDays();
-
-loadBookings(id);
-
-loadTimetable(id);
-
-
-setTimeout(()=>{
-
-const qr=
-document.getElementById('qrcode');
-
-if(qr){
-
-qr.innerHTML='';
-
-new QRCode(qr,{
-text:currentLink,
-width:220,
-height:220
-});
-
-}
-
-},100);
-
-}
-
-
-/* =========================
-   TIMETABLE
-========================= */
-
-const dayNames=[
-'रविवार',
-'सोमवार',
-'मंगलवार',
-'बुधवार',
-'गुरुवार',
-'शुक्रवार',
-'शनिवार'
-];
-
-
-function renderDays(saved=[]){
-
-const box=
-document.getElementById('days');
-
-if(!box)return;
-
-
-box.innerHTML=
-
-dayNames.map((d,i)=>{
-
-const x=
-saved.find(v=>
-Number(v.day_of_week)===i
-)||{};
-
-
-return `
-
-<div class="day">
-
-<b>📅 ${d}</b>
-
-<label>
-
-<input
-type="checkbox"
-id="open${i}"
-${x.is_open===false?'':'checked'}
->
-
-सैलून खुला
-
-</label>
-
-
-<div class="row">
-
-<div>
-
-<label class="small">
-खुलने का समय
-</label>
-
-<input
-id="start${i}"
-type="time"
-value="${String(x.opening_time||'09:00').slice(0,5)}"
->
-
-</div>
-
-
-<div>
-
-<label class="small">
-बंद होने का समय
-</label>
-
-<input
-id="end${i}"
-type="time"
-value="${String(x.closing_time||'20:00').slice(0,5)}"
->
-
-</div>
-
-</div>
-
-
-<label class="small">
-Booking Slot
-</label>
-
-<select id="slot${i}">
-
-<option value="15"
-${Number(x.slot_minutes)===15?'selected':''}>
-15 मिनट
-</option>
-
-<option value="30"
-${!x.slot_minutes||Number(x.slot_minutes)===30?'selected':''}>
-30 मिनट
-</option>
-
-<option value="45"
-${Number(x.slot_minutes)===45?'selected':''}>
-45 मिनट
-</option>
-
-<option value="60"
-${Number(x.slot_minutes)===60?'selected':''}>
-60 मिनट
-</option>
-
-</select>
-
-</div>
-
-`;
-
-}).join('');
-
-}
-
-
-/* =========================
-   LOAD TIMETABLE
-========================= */
-
-async function loadTimetable(salonId){
-
-const {data,error}=
-
-await db
-.from('salon_timetable')
-.select('*')
-.eq('salon_id',salonId)
-.order('day_of_week');
-
-
-if(error){
-
-console.log('Timetable:',error.message);
-
-return;
-
-}
-
-renderDays(data||[]);
-
-}
-
-
-/* =========================
-   SAVE TIMETABLE
-========================= */
-
-async function saveTimetable(){
-
-if(!currentSalon)return;
-
-
-const rows=
-dayNames.map((_,i)=>({
-
-salon_id:currentSalon.id,
-
-day_of_week:i,
-
-is_open:
-document.getElementById('open'+i).checked,
-
-opening_time:
-document.getElementById('start'+i).value,
-
-closing_time:
-document.getElementById('end'+i).value,
-
-slot_minutes:
-Number(
-document.getElementById('slot'+i).value
-)
-
-}));
-
-
-const {error}=
-
-await db
-.from('salon_timetable')
-.upsert(
-rows,
-{
-onConflict:
-'salon_id,day_of_week'
-}
-);
-
-
-if(error){
-
-alert(
-'Save error: '+
-error.message
-);
-
-return;
-
-}
-
-
-alert(
-'✅ Timetable & Slots save हो गए'
-);
-
-}
-
-
-/* =========================
-   BOOKINGS
-========================= */
-
-async function loadBookings(id){
-
-const {data,error}=
-
-await db
-.from('bookings')
-.select('*')
-.eq('salon_id',id)
-.order('booking_date',{ascending:true})
-.order('booking_time',{ascending:true});
-
-
-const box=
-document.getElementById('bookings');
-
-if(!box)return;
-
-
-if(error){
-
-box.textContent=error.message;
-return;
-
-}
-
-
-box.innerHTML=
-
-(data||[]).map(b=>`
-
-<div class="service">
-
-<b>${esc(b.customer_name)}</b>
-
-— ${esc(b.customer_phone)}
-
-<br>
-
-${esc(b.service_name)}
-₹${esc(b.amount)}
-
-<br>
-
-📅 ${esc(b.booking_date)}
-⏰ ${esc(b.booking_time)}
-
-<br>
-
-Status:
-${esc(b.status||'pending')}
-
-</div>
-
-`).join('')
-
-||
-
-'<p>अभी कोई booking नहीं।</p>';
-
-}
-
-
-/* =========================
-   REGISTER SALON
-========================= */
-
-async function registerSalon(){
-
-const name=
-document.getElementById('rName')
-.value.trim();
-
-if(!name){
-
-alert('Salon name डालें');
-return;
-
-}
-
-
-const slug=
-
-name
-.toLowerCase()
-.replace(/[^a-z0-9]+/g,'-')
-.replace(/^-|-$/g,'')
-+
-'-'+
-Math.random()
-.toString(36)
-.slice(2,6);
-
-
-const {data,error}=
-
-await db
-.from('salons')
-.insert({
-
-name:name,
-
-slug:slug,
-
-owner_name:
-document.getElementById('rOwner')
-.value.trim(),
-
-phone:
-document.getElementById('rPhone')
-.value.trim(),
-
-area:
-document.getElementById('rArea')
-.value.trim(),
-
-active:true
-
-})
-.select()
-.single();
-
-
-if(error){
-
-alert(error.message);
-return;
-
-}
-
-
-for(
-const x of [
-{name:'Hair Cut',price:150},
-{name:'Beard',price:100}
-]
-){
-
-await db
-.from('services')
-.insert({
-
-salon_id:data.id,
-name:x.name,
-price:x.price,
-active:true
-
-});
-
-}
-
-
-alert('✅ Salon बन गया');
-
-await loadSalons();
-
-await loadOwnerList();
-
-show('owner');
-
-document.getElementById('ownerSalon').value=
-data.id;
-
-loadOwner();
-
-}
-
-
-/* =========================
-   COPY LINK
-========================= */
-
-async function copyLink(){
-
-try{
-
-await navigator.clipboard.writeText(currentLink);
-
-alert('✅ Link Copy हो गया');
-
-}catch(e){
-
-const input=
-document.getElementById('qrLink');
-
-input.select();
-
-document.execCommand('copy');
-
-alert('✅ Link Copy हो गया');
-
-}
-
-}
-
-
-/* =========================
-   ANDROID SHARE
-========================= */
-
-async function shareLink(){
-
-if(navigator.share){
-
-try{
-
-await navigator.share({
-
-title:'अपना हेयर बाज़ार',
-
-text:
-'✂️ इस सैलून में online appointment book करें 👇',
-
-url:currentLink
-
-});
-
-}catch(e){}
-
-}else{
-
-await copyLink();
-
-}
-
-}
-
-
-/* =========================
-   WHATSAPP
-========================= */
-
-function whatsapp(){
-
-const text=
-
-'✂️ अपना हेयर बाज़ार\n\n'+
-'इस सैलून में online appointment book करें 👇\n\n'+
-currentLink;
-
-
-window.open(
-'https://wa.me/?text='+
-encodeURIComponent(text),
-'_blank'
-);
-
-}
-
-
-/* =========================
-   OPEN LINK
-========================= */
-
-function openLink(){
-
-window.open(
-currentLink,
-'_blank'
-);
-
-}
-
-
-/* =========================
-   START
-========================= */
-
-init();
-
-</script>
-
-</body>
-</html>
+  "https://xwkxnpxixrrjuooamrcw.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_T-jquuQOszaWlcmfBLdPOA_Mh10C9QN";
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+
+/* =========================================================
+   DEFAULT SETTINGS
+========================================================= */
+
+const DEFAULT_OPENING = "09:00";
+const DEFAULT_CLOSING = "20:00";
+const DEFAULT_SLOT_MINUTES = 30;
+
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "W
